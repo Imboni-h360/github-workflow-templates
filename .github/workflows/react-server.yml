@@ -40,6 +40,15 @@ on:
         required: true
       SERVER_HOST:
         required: true
+      # Vite build-time env vars — baked into the JS bundle at build time
+      VITE_API_BASE_URL:
+        required: false
+      VITE_GOOGLE_MAPS_API_KEY:
+        required: false
+      VITE_CLINIC_WEB_URL:
+        required: false
+      VITE_BOOKING_IFRAME_URL:
+        required: false
 
 permissions:
   contents: read
@@ -152,6 +161,20 @@ jobs:
         with:
           node-version-file: ${{ inputs.node-version-file }}
           install-args: ${{ inputs.install-args }}
+
+      - name: Write production .env
+        run: |
+          cat > .env << 'ENVEOF'
+          VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
+          VITE_ENV=production
+          VITE_ENABLE_PWA=true
+          VITE_ENABLE_ANALYTICS=false
+          VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_CLINIC_WEB_URL=${{ secrets.VITE_CLINIC_WEB_URL }}
+          VITE_BOOKING_IFRAME_URL=${{ secrets.VITE_BOOKING_IFRAME_URL }}
+          ENVEOF
+          # strip leading whitespace from heredoc
+          sed -i 's/^[[:space:]]*//' .env
 
       - name: Build
         run: ${{ inputs.build-command }}
