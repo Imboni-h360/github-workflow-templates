@@ -152,7 +152,7 @@ jobs:
           HIGH=$(echo "$RESULT" | jq '[
             .vulnerabilities // {} | to_entries[]
             | select(.value.severity == "high" or .value.severity == "critical")
-            | select(.value.fixAvailable == true)
+            | select((.value.fixAvailable | type) == "boolean" and .value.fixAvailable == true)
           ] | length')
           echo "Safely-fixable HIGH/CRITICAL: $HIGH"
           if [[ $HIGH -gt 0 ]]; then
