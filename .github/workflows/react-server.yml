@@ -180,20 +180,29 @@ jobs:
         run: ${{ inputs.build-command }}
 
       - name: Setup SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+          HOST=$(echo "$SERVER_HOST" | tr -d '[:space:]')
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
 
       - name: Rsync dist to server
-        run: rsync -az --delete -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" ${{ inputs.output-dir }}/ ${{ inputs.server-user }}@${{ secrets.SERVER_HOST }}:${{ inputs.nginx-root }}/
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          HOST=$(echo "$SERVER_HOST" | tr -d '[:space:]')
+          rsync -az --delete -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" ${{ inputs.output-dir }}/ ${{ inputs.server-user }}@${HOST}:${{ inputs.nginx-root }}/
 
       - name: Reload Nginx
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            ${{ inputs.server-user }}@${{ secrets.SERVER_HOST }} \
-            "nginx -t && systemctl reload nginx"
+          HOST=$(echo "$SERVER_HOST" | tr -d '[:space:]')
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ inputs.server-user }}@${HOST} "nginx -t && systemctl reload nginx"
 
       - name: Write summary
         run: |
