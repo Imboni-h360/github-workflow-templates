@@ -35,6 +35,10 @@ on:
         description: Whether to run the security scan jobs
         type: boolean
         default: true
+      event-name:
+        description: github.event_name from the caller (push, pull_request, etc.)
+        type: string
+        default: 'push'
     secrets:
       DOCKERHUB_USERNAME:
         required: true
@@ -164,7 +168,7 @@ jobs:
     name: Build & Push → Docker Hub
     runs-on: ubuntu-latest
     needs: gate
-    if: needs.gate.result == 'success' && github.event_name == 'push'
+    if: needs.gate.result == 'success' && inputs.event-name == 'push'
     steps:
       - uses: actions/checkout@v5
 
