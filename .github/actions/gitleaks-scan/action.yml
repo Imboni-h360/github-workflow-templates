@@ -8,6 +8,9 @@ inputs:
   exit-code:
     description: Exit code when leaks are found
     default: '1'
+  config-path:
+    description: Path to .gitleaks.toml config (for allowlisting false positives)
+    default: '.gitleaks.toml'
 
 runs:
   using: composite
@@ -25,4 +28,9 @@ runs:
 
     - name: Run Gitleaks
       shell: bash
-      run: gitleaks detect --source . --redact --verbose --exit-code ${{ inputs.exit-code }}
+      run: |
+        CONFIG_FLAG=""
+        if [ -f "${{ inputs.config-path }}" ]; then
+          CONFIG_FLAG="--config=${{ inputs.config-path }}"
+        fi
+        gitleaks detect --source . --redact --verbose $CONFIG_FLAG --exit-code ${{ inputs.exit-code }}
