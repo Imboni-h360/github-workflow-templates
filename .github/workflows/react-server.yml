@@ -1,0 +1,183 @@
+name: React CI → Nginx Server (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      node-version-file:
+        description: Path to .nvmrc or .node-version
+        type: string
+        default: '.nvmrc'
+      install-args:
+        description: Extra flags for npm ci
+        type: string
+        default: '--prefer-offline --legacy-peer-deps'
+      build-command:
+        description: Build command
+        type: string
+        default: 'npm run build'
+      output-dir:
+        description: Static build output directory
+        type: string
+        default: 'dist'
+      run-tests:
+        description: Whether to run unit tests
+        type: boolean
+        default: true
+      security-scan:
+        description: Whether to run secret + npm audit checks
+        type: boolean
+        default: true
+      server-user:
+        description: SSH user on the target server
+        type: string
+        default: 'root'
+      nginx-root:
+        description: Absolute path to Nginx web root on the server
+        type: string
+        default: '/var/www/h360-frontend'
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: true
+      SERVER_HOST:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ── 1. Secret scan ──────────────────────────────────────────────────────────
+  secrets:
+    name: Secret Detection (Gitleaks)
+    runs-on: ubuntu-latest
+    if: inputs.security-scan
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: Imboni-h360/github-workflow-templates/.github/actions/gitleaks-scan@main
+
+  # ── 2. npm audit ────────────────────────────────────────────────────────────
+  npm-audit:
+    name: npm Audit
+    runs-on: ubuntu-latest
+    needs: secrets
+    if: always() && (needs.secrets.result == 'success' || needs.secrets.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: Imboni-h360/github-workflow-templates/.github/actions/setup-node@main
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          install-args: ${{ inputs.install-args }}
+
+      - name: npm audit (production)
+        run: |
+          RESULT=$(npm audit --omit=dev --json 2>/dev/null || true)
+          HIGH=$(echo "$RESULT" | jq '[
+            .vulnerabilities // {} | to_entries[]
+            | select(.value.severity == "high" or .value.severity == "critical")
+            | select((.value.fixAvailable | type) == "boolean" and .value.fixAvailable == true)
+          ] | length')
+          if [[ $HIGH -gt 0 ]]; then
+            echo "❌ $HIGH HIGH/CRITICAL with safe fix — run npm audit fix"
+            exit 1
+          fi
+          echo "✅ No safely-fixable HIGH/CRITICAL"
+
+  # ── 3. TypeScript check ─────────────────────────────────────────────────────
+  typescript:
+    name: TypeScript Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: Imboni-h360/github-workflow-templates/.github/actions/setup-node@main
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          install-args: ${{ inputs.install-args }}
+
+      - run: npx tsc --noEmit
+
+  # ── 4. Unit tests ───────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    if: inputs.run-tests
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: Imboni-h360/github-workflow-templates/.github/actions/setup-node@main
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          install-args: ${{ inputs.install-args }}
+
+      - run: npm test -- --passWithNoTests
+
+  # ── 5. Gate ──────────────────────────────────────────────────────────────────
+  gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs: [secrets, npm-audit, typescript, test]
+    if: always()
+    steps:
+      - name: Evaluate
+        run: |
+          echo "secrets:    ${{ needs.secrets.result }}"
+          echo "npm-audit:  ${{ needs.npm-audit.result }}"
+          echo "typescript: ${{ needs.typescript.result }}"
+          echo "test:       ${{ needs.test.result }}"
+
+          FAIL=0
+          [[ "${{ needs.secrets.result }}"    == "failure" ]] && FAIL=1
+          [[ "${{ needs.npm-audit.result }}"  == "failure" ]] && FAIL=1
+          [[ "${{ needs.typescript.result }}" != "success" ]] && FAIL=1
+          [[ "${{ needs.test.result }}"       == "failure" ]] && FAIL=1
+
+          if [[ $FAIL -eq 1 ]]; then echo "❌ CI GATE FAILED"; exit 1; fi
+          echo "✅ CI GATE PASSED"
+
+  # ── 6. Build & Deploy to Nginx server via SSH ────────────────────────────────
+  deploy:
+    name: Deploy → Nginx Server
+    runs-on: ubuntu-latest
+    needs: gate
+    if: always() && needs.gate.result == 'success'
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: Imboni-h360/github-workflow-templates/.github/actions/setup-node@main
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          install-args: ${{ inputs.install-args }}
+
+      - name: Build
+        run: ${{ inputs.build-command }}
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Rsync dist to server
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            ${{ inputs.output-dir }}/ \
+            ${{ inputs.server-user }}@${{ secrets.SERVER_HOST }}:${{ inputs.nginx-root }}/
+
+      - name: Reload Nginx
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            ${{ inputs.server-user }}@${{ secrets.SERVER_HOST }} \
+            "nginx -t && systemctl reload nginx"
+
+      - name: Write summary
+        run: |
+          echo "### Server deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Host:** ${{ secrets.SERVER_HOST }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Path:** ${{ inputs.nginx-root }}" >> "$GITHUB_STEP_SUMMARY"
