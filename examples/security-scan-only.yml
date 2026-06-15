@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   security:
-    uses: imbonih360/github-workflow-templates/.github/workflows/security-scan.yml@main
+    uses: Imboni-h360/github-workflow-templates/.github/workflows/security-scan.yml@main
     with:
       node-version-file: '.nvmrc'
       severity-gate: 'CRITICAL,HIGH'

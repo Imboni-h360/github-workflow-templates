@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks
-        uses: imbonih360/github-workflow-templates/.github/actions/gitleaks-scan@main
+        uses: Imboni-h360/github-workflow-templates/.github/actions/gitleaks-scan@main
 
   # ── 2. npm audit ────────────────────────────────────────────────────────────
   npm-audit:
@@ -70,7 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: imbonih360/github-workflow-templates/.github/actions/setup-node@main
+      - uses: Imboni-h360/github-workflow-templates/.github/actions/setup-node@main
         with:
           node-version-file: ${{ inputs.node-version-file }}
           install-args: ${{ inputs.install-args }}
@@ -96,7 +96,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: imbonih360/github-workflow-templates/.github/actions/setup-node@main
+      - uses: Imboni-h360/github-workflow-templates/.github/actions/setup-node@main
         with:
           node-version-file: ${{ inputs.node-version-file }}
           install-args: ${{ inputs.install-args }}
@@ -111,7 +111,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: imbonih360/github-workflow-templates/.github/actions/setup-node@main
+      - uses: Imboni-h360/github-workflow-templates/.github/actions/setup-node@main
         with:
           node-version-file: ${{ inputs.node-version-file }}
           install-args: ${{ inputs.install-args }}
@@ -150,13 +150,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: imbonih360/github-workflow-templates/.github/actions/setup-node@main
+      - uses: Imboni-h360/github-workflow-templates/.github/actions/setup-node@main
         with:
           node-version-file: ${{ inputs.node-version-file }}
           install-args: ${{ inputs.install-args }}
 
       - name: Deploy
-        uses: imbonih360/github-workflow-templates/.github/actions/vercel-deploy@main
+        uses: Imboni-h360/github-workflow-templates/.github/actions/vercel-deploy@main
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}

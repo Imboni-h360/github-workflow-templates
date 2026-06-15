@@ -12,7 +12,7 @@ on:
 
 jobs:
   ci:
-    uses: imbonih360/github-workflow-templates/.github/workflows/nestjs-dockerhub.yml@main
+    uses: Imboni-h360/github-workflow-templates/.github/workflows/nestjs-dockerhub.yml@main
     with:
       image-name: imboni-h360-backend
       image-title: IMBONI H360 Backend

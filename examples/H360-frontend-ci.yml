@@ -10,7 +10,7 @@ on:
 
 jobs:
   ci:
-    uses: imbonih360/github-workflow-templates/.github/workflows/react-vercel.yml@main
+    uses: Imboni-h360/github-workflow-templates/.github/workflows/react-vercel.yml@main
     with:
       node-version-file: '.nvmrc'
       build-command: 'npm run build'
