@@ -145,13 +145,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: gate
     if: always() && needs.gate.result == 'success'
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-
-      - uses: Imboni-h360/github-workflow-templates/.github/actions/setup-node@main
-        with:
-          node-version-file: ${{ inputs.node-version-file }}
-          install-args: ${{ inputs.install-args }}
 
       - name: Deploy
         uses: Imboni-h360/github-workflow-templates/.github/actions/vercel-deploy@main
