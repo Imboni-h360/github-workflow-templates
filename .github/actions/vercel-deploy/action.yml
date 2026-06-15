@@ -1,5 +1,5 @@
 name: Vercel Deploy
-description: Build React static files and deploy to Vercel
+description: Build and deploy to Vercel using CLI v54+ prebuilt flow
 
 inputs:
   vercel-token:
@@ -11,12 +11,6 @@ inputs:
   vercel-project-id:
     description: Vercel project ID
     required: true
-  build-command:
-    description: Build command to run before deploy
-    default: 'npm run build'
-  output-dir:
-    description: Directory containing built static files
-    default: 'dist'
   environment:
     description: 'preview | production'
     default: 'preview'
@@ -36,11 +30,7 @@ runs:
       shell: bash
       run: npm install --global vercel@latest
 
-    - name: Build
-      shell: bash
-      run: ${{ inputs.build-command }}
-
-    - name: Pull Vercel environment
+    - name: Pull Vercel environment & project settings
       shell: bash
       env:
         VERCEL_TOKEN: ${{ inputs.vercel-token }}
@@ -48,7 +38,20 @@ runs:
         VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
       run: vercel pull --yes --environment=${{ inputs.environment }} --token="$VERCEL_TOKEN"
 
-    - name: Deploy to Vercel
+    - name: Build via Vercel
+      shell: bash
+      env:
+        VERCEL_TOKEN: ${{ inputs.vercel-token }}
+        VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
+        VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
+      run: |
+        if [[ "${{ inputs.branch-ref }}" == "refs/heads/main" ]]; then
+          vercel build --prod --token="$VERCEL_TOKEN"
+        else
+          vercel build --token="$VERCEL_TOKEN"
+        fi
+
+    - name: Deploy prebuilt output
       id: deploy
       shell: bash
       env:
@@ -60,7 +63,7 @@ runs:
         if [[ "${{ inputs.branch-ref }}" == "refs/heads/main" ]]; then
           PROD_FLAG="--prod"
         fi
-        URL=$(vercel deploy ${{ inputs.output-dir }} $PROD_FLAG --token="$VERCEL_TOKEN" 2>&1 | tail -1)
+        URL=$(vercel deploy --prebuilt $PROD_FLAG --token="$VERCEL_TOKEN" 2>&1 | tail -1)
         echo "url=$URL" >> "$GITHUB_OUTPUT"
         echo "Deployed: $URL"
 

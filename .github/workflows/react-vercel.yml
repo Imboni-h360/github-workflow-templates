@@ -163,7 +163,5 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID || secrets.VERCEL_ORG }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          build-command: ${{ inputs.build-command }}
-          output-dir: ${{ inputs.output-dir }}
           environment: ${{ inputs.environment }}
           branch-ref: ${{ github.ref }}
