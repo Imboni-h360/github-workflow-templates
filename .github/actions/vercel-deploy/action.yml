@@ -11,6 +11,9 @@ inputs:
   vercel-project-id:
     description: Vercel project ID
     required: true
+  vercel-version:
+    description: Vercel CLI version to pin
+    default: '54.14.0'
   environment:
     description: 'preview | production'
     default: 'preview'
@@ -26,9 +29,22 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Cache Vercel CLI
+      uses: actions/cache@v4
+      id: vercel-cache
+      with:
+        path: ~/.npm-global
+        key: vercel-cli-${{ inputs.vercel-version }}
+
     - name: Install Vercel CLI
+      if: steps.vercel-cache.outputs.cache-hit != 'true'
       shell: bash
-      run: npm install --global vercel@latest
+      run: |
+        npm install --global --prefix ~/.npm-global vercel@${{ inputs.vercel-version }}
+
+    - name: Add Vercel CLI to PATH
+      shell: bash
+      run: echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH"
 
     - name: Pull Vercel environment & project settings
       shell: bash
