@@ -8,6 +8,11 @@ on:
     branches: [uat, main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+  deployments: write
+
 jobs:
   ci:
     uses: Imboni-h360/github-workflow-templates/.github/workflows/react-vercel.yml@main
