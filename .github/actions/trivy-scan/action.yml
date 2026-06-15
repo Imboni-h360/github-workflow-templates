@@ -1,0 +1,61 @@
+name: Trivy Security Scan
+description: Run Trivy fs/config/secret/image scan and upload SARIF
+
+inputs:
+  scan-type:
+    description: 'fs | config | image'
+    required: true
+  scan-ref:
+    description: Path or image ref to scan
+    default: '.'
+  scanners:
+    description: Override scanners (e.g. secret). Leave empty for default.
+    default: ''
+  severity:
+    description: Comma-separated severities that cause exit-code 1
+    default: 'CRITICAL,HIGH'
+  sarif-category:
+    description: Category label for the SARIF upload
+    required: true
+  sarif-output:
+    description: Output filename for the SARIF report
+    required: true
+  trivyignore:
+    description: Path to .trivyignore file
+    default: '.trivyignore'
+  exit-code:
+    description: Exit code on findings
+    default: '1'
+
+runs:
+  using: composite
+  steps:
+    - name: Run Trivy scan (table)
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        scan-type: ${{ inputs.scan-type }}
+        scan-ref: ${{ inputs.scan-ref }}
+        scanners: ${{ inputs.scanners }}
+        format: table
+        exit-code: ${{ inputs.exit-code }}
+        severity: ${{ inputs.severity }}
+        trivyignores: ${{ inputs.trivyignore }}
+
+    - name: Run Trivy scan (SARIF)
+      uses: aquasecurity/trivy-action@0.28.0
+      if: always()
+      with:
+        scan-type: ${{ inputs.scan-type }}
+        scan-ref: ${{ inputs.scan-ref }}
+        scanners: ${{ inputs.scanners }}
+        format: sarif
+        output: ${{ inputs.sarif-output }}
+        severity: ${{ inputs.severity }},MEDIUM
+        trivyignores: ${{ inputs.trivyignore }}
+
+    - name: Upload SARIF to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: ${{ inputs.sarif-output }}
+        category: ${{ inputs.sarif-category }}

@@ -1,0 +1,170 @@
+name: Security Scan (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      node-version-file:
+        description: Path to .nvmrc or .node-version
+        type: string
+        default: '.nvmrc'
+      install-args:
+        description: Extra flags for npm ci
+        type: string
+        default: '--prefer-offline --legacy-peer-deps'
+      severity-gate:
+        description: Severities that fail the build
+        type: string
+        default: 'CRITICAL,HIGH'
+      trivyignore:
+        description: Path to .trivyignore
+        type: string
+        default: '.trivyignore'
+      scan-image:
+        description: Whether to build and scan the Docker image
+        type: boolean
+        default: false
+      image-name:
+        description: Local image tag used when scan-image is true
+        type: string
+        default: 'app:scan'
+      gitleaks-version:
+        description: Gitleaks CLI version
+        type: string
+        default: '8.30.1'
+    secrets:
+      # Optional: pass GITLEAKS_LICENSE if you have a pro key
+      GITLEAKS_LICENSE:
+        required: false
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ── Secret detection ────────────────────────────────────────────────────────
+  secrets:
+    name: Secret Detection (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: imbonih360/github-workflow-templates/.github/actions/gitleaks-scan@main
+        with:
+          version: ${{ inputs.gitleaks-version }}
+
+  # ── Dependency vulnerabilities ──────────────────────────────────────────────
+  dependency-scan:
+    name: Dependency Vulnerabilities (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node & install
+        uses: imbonih360/github-workflow-templates/.github/actions/setup-node@main
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          install-args: ${{ inputs.install-args }}
+
+      - name: Trivy filesystem scan
+        uses: imbonih360/github-workflow-templates/.github/actions/trivy-scan@main
+        with:
+          scan-type: fs
+          severity: ${{ inputs.severity-gate }}
+          sarif-category: dependency-scan
+          sarif-output: trivy-fs-results.sarif
+          trivyignore: ${{ inputs.trivyignore }}
+
+  # ── Config / IaC misconfigurations ──────────────────────────────────────────
+  config-scan:
+    name: Config & IaC Misconfigurations (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Trivy config scan
+        uses: imbonih360/github-workflow-templates/.github/actions/trivy-scan@main
+        with:
+          scan-type: config
+          severity: ${{ inputs.severity-gate }}
+          sarif-category: config-scan
+          sarif-output: trivy-config-results.sarif
+          trivyignore: ${{ inputs.trivyignore }}
+
+  # ── Secret scan via Trivy ───────────────────────────────────────────────────
+  secret-scan:
+    name: Secret Scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Trivy secret scan
+        uses: imbonih360/github-workflow-templates/.github/actions/trivy-scan@main
+        with:
+          scan-type: fs
+          scanners: secret
+          severity: ${{ inputs.severity-gate }}
+          sarif-category: secret-scan
+          sarif-output: trivy-secret-results.sarif
+          trivyignore: ${{ inputs.trivyignore }}
+
+  # ── Container image scan (optional) ────────────────────────────────────────
+  container-scan:
+    name: Container Image Vulnerabilities (Trivy)
+    runs-on: ubuntu-latest
+    if: inputs.scan-image
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build Docker image
+        run: docker build -t ${{ inputs.image-name }} .
+
+      - name: Trivy image scan
+        uses: imbonih360/github-workflow-templates/.github/actions/trivy-scan@main
+        with:
+          scan-type: image
+          scan-ref: ${{ inputs.image-name }}
+          severity: ${{ inputs.severity-gate }}
+          sarif-category: container-scan
+          sarif-output: trivy-image-results.sarif
+          trivyignore: ${{ inputs.trivyignore }}
+
+  # ── npm audit + module report ───────────────────────────────────────────────
+  npm-audit:
+    name: npm Audit Report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node & install
+        uses: imbonih360/github-workflow-templates/.github/actions/setup-node@main
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          install-args: ${{ inputs.install-args }}
+
+      - name: npm audit (production only)
+        run: |
+          RESULT=$(npm audit --omit=dev --json 2>/dev/null || true)
+          HIGH=$(echo "$RESULT" | jq '[
+            .vulnerabilities // {} | to_entries[]
+            | select(.value.severity == "high" or .value.severity == "critical")
+            | select(.value.fixAvailable == true)
+          ] | length')
+          echo "Safely-fixable HIGH/CRITICAL: $HIGH"
+          if [[ $HIGH -gt 0 ]]; then
+            echo "❌ $HIGH HIGH/CRITICAL with safe fix available — run npm audit fix"
+            exit 1
+          fi
+          echo "✅ No safely-fixable HIGH/CRITICAL"
+
+      - name: Upload npm audit JSON
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-report
+          path: npm-audit.json
+          retention-days: 30

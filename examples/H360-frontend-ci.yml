@@ -1,0 +1,25 @@
+# Place this file at: H360-frontend/.github/workflows/ci.yml
+name: CI + Deploy → Vercel (H360-frontend)
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [uat, main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: imbonih360/github-workflow-templates/.github/workflows/react-vercel.yml@main
+    with:
+      node-version-file: '.nvmrc'
+      build-command: 'npm run build'
+      output-dir: 'dist'
+      run-tests: true
+      security-scan: true
+      # auto-promotes to production when pushed to main (handled inside the action)
+      environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+    secrets:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

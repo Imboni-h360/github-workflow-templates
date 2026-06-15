@@ -1,0 +1,24 @@
+name: Setup Node.js
+description: Install Node.js and restore npm cache
+
+inputs:
+  node-version-file:
+    description: Path to .nvmrc or .node-version file
+    default: '.nvmrc'
+  install-args:
+    description: Extra flags passed to npm ci
+    default: '--prefer-offline --legacy-peer-deps'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+        cache: npm
+        cache-dependency-path: package-lock.json
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci ${{ inputs.install-args }}

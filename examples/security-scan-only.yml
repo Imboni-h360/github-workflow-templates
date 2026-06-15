@@ -1,0 +1,25 @@
+# Place this file at any repo's .github/workflows/security-scan.yml
+# to run the standalone security scan on a schedule + push/PR.
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security:
+    uses: imbonih360/github-workflow-templates/.github/workflows/security-scan.yml@main
+    with:
+      node-version-file: '.nvmrc'
+      severity-gate: 'CRITICAL,HIGH'
+      scan-image: true
+      image-name: 'h360-app:scan'

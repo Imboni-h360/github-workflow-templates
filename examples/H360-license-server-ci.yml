@@ -1,0 +1,25 @@
+# Place this file at: H360-license-server/.github/workflows/ci.yml
+# This replaces the existing full ci.yml with a 5-line caller.
+name: CI + Build → Docker Hub (license-server)
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [uat, main]
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: imbonih360/github-workflow-templates/.github/workflows/nestjs-dockerhub.yml@main
+    with:
+      image-name: imboni-h360-license-server
+      image-title: IMBONI H360 License Server
+      node-version-file: '.nvmrc'
+      run-tests: true
+      security-scan: true
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
