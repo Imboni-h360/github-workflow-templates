@@ -49,10 +49,6 @@ permissions:
   contents: read
   security-events: write
 
-concurrency:
-  group: nestjs-${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
-
 jobs:
   # ── 1. Secret scan ──────────────────────────────────────────────────────────
   secrets:
