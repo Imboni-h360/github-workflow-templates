@@ -187,11 +187,7 @@ jobs:
           ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Rsync dist to server
-        run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
-            ${{ inputs.output-dir }}/ \
-            ${{ inputs.server-user }}@${{ secrets.SERVER_HOST }}:${{ inputs.nginx-root }}/
+        run: rsync -az --delete -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" ${{ inputs.output-dir }}/ ${{ inputs.server-user }}@${{ secrets.SERVER_HOST }}:${{ inputs.nginx-root }}/
 
       - name: Reload Nginx
         run: |
