@@ -63,6 +63,8 @@ on:
         required: false
       VITE_CLINIC_ID:
         required: false
+      VITE_CLINIC_WEB_PANEL_URL:
+        required: false
 
 permissions:
   contents: read
@@ -188,7 +190,8 @@ jobs:
             [ -n "$VITE_CLINIC_WEB_URL" ]    && echo "VITE_CLINIC_WEB_URL=$VITE_CLINIC_WEB_URL"
             [ -n "$VITE_BOOKING_IFRAME_URL" ] && echo "VITE_BOOKING_IFRAME_URL=$VITE_BOOKING_IFRAME_URL"
             [ -n "$VITE_PORTAL_URL" ]        && echo "VITE_PORTAL_URL=$VITE_PORTAL_URL"
-            [ -n "$VITE_CLINIC_ID" ]         && echo "VITE_CLINIC_ID=$VITE_CLINIC_ID"
+            [ -n "$VITE_CLINIC_ID" ]             && echo "VITE_CLINIC_ID=$VITE_CLINIC_ID"
+            [ -n "$VITE_CLINIC_WEB_PANEL_URL" ]  && echo "VITE_CLINIC_WEB_PANEL_URL=$VITE_CLINIC_WEB_PANEL_URL"
           } > .env
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
@@ -198,6 +201,7 @@ jobs:
           VITE_BOOKING_IFRAME_URL: ${{ secrets.VITE_BOOKING_IFRAME_URL }}
           VITE_PORTAL_URL: ${{ secrets.VITE_PORTAL_URL }}
           VITE_CLINIC_ID: ${{ secrets.VITE_CLINIC_ID }}
+          VITE_CLINIC_WEB_PANEL_URL: ${{ secrets.VITE_CLINIC_WEB_PANEL_URL }}
 
       - name: Build
         run: ${{ inputs.build-command }}
