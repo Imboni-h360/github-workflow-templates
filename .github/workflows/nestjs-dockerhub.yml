@@ -15,6 +15,31 @@ on:
         description: OCI image vendor label
         type: string
         default: 'IMBONI Health'
+      # ── Server deploy ──────────────────────────────────────────────────────
+      deploy-to-server:
+        description: Whether to SSH into server and run docker compose pull + up
+        type: boolean
+        default: false
+      server-user:
+        description: SSH user on the target server
+        type: string
+        default: 'root'
+      compose-dir:
+        description: Absolute path to docker-compose.yml on the server
+        type: string
+        default: '/opt/app'
+      setup-nginx:
+        description: Whether to create/update Nginx reverse proxy config on the server
+        type: boolean
+        default: false
+      nginx-domain:
+        description: Domain for the Nginx server block (e.g. api.imboni.co.rw)
+        type: string
+        default: ''
+      nginx-port:
+        description: Local port the container listens on
+        type: string
+        default: '3000'
       node-version-file:
         description: Path to .nvmrc or .node-version
         type: string
@@ -44,6 +69,10 @@ on:
         required: true
       DOCKERHUB_TOKEN:
         required: true
+      SSH_PRIVATE_KEY:
+        required: false
+      SERVER_HOST:
+        required: false
 
 permissions:
   contents: read
@@ -180,3 +209,66 @@ jobs:
           run-number: ${{ github.run_number }}
           branch-ref: ${{ github.ref }}
           sha: ${{ github.sha }}
+
+  # ── 8. Deploy to server via SSH ─────────────────────────────────────────────
+  deploy:
+    name: Deploy → Server
+    runs-on: ubuntu-latest
+    needs: docker
+    if: always() && needs.docker.result == 'success' && inputs.deploy-to-server
+    timeout-minutes: 10
+    steps:
+      - name: Setup SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          HOST=$(echo "$SERVER_HOST" | tr -d '[:space:]')
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Setup Nginx config
+        if: inputs.setup-nginx && inputs.nginx-domain != ''
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          HOST=$(echo "$SERVER_HOST" | tr -d '[:space:]')
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ inputs.server-user }}@${HOST} "
+            cat > /etc/nginx/sites-available/${{ inputs.nginx-domain }} << 'NGINXEOF'
+          server {
+              listen 80;
+              server_name ${{ inputs.nginx-domain }};
+
+              location / {
+                  proxy_pass http://localhost:${{ inputs.nginx-port }};
+                  proxy_http_version 1.1;
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Real-IP \$remote_addr;
+                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
+              }
+          }
+          NGINXEOF
+            ln -sf /etc/nginx/sites-available/${{ inputs.nginx-domain }} /etc/nginx/sites-enabled/
+            nginx -t && systemctl reload nginx
+          "
+
+      - name: Pull & restart container
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          HOST=$(echo "$SERVER_HOST" | tr -d '[:space:]')
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ inputs.server-user }}@${HOST} "
+            cd ${{ inputs.compose-dir }} &&
+            docker compose pull &&
+            docker compose up -d
+          "
+
+      - name: Write summary
+        run: |
+          echo "### Server deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Host:** ${{ secrets.SERVER_HOST }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Compose dir:** ${{ inputs.compose-dir }}" >> "$GITHUB_STEP_SUMMARY"
+          ${{ inputs.nginx-domain != '' && format('echo "**Domain:** https://{0}" >> "$GITHUB_STEP_SUMMARY"', inputs.nginx-domain) || 'true' }}
