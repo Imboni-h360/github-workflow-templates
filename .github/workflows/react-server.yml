@@ -225,6 +225,10 @@ jobs:
           NGINXEOF
             ln -sf /etc/nginx/sites-available/${{ inputs.nginx-domain }} /etc/nginx/sites-enabled/
             nginx -t && systemctl reload nginx
+            # Auto-provision SSL if certbot is installed and cert doesn't exist yet
+            if command -v certbot &>/dev/null && [ ! -d /etc/letsencrypt/live/${{ inputs.nginx-domain }} ]; then
+              certbot --nginx -d ${{ inputs.nginx-domain }} --non-interactive --agree-tos -m admin@imboni.co.rw
+            fi
           "
 
       - name: Rsync dist to server
