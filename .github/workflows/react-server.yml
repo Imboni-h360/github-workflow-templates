@@ -35,6 +35,14 @@ on:
         description: Absolute path to Nginx web root on the server
         type: string
         default: '/var/www/h360-frontend'
+      setup-nginx:
+        description: Whether to create/update Nginx config on the server
+        type: boolean
+        default: false
+      nginx-domain:
+        description: Domain for the Nginx server block (e.g. h360.imboni.co.rw)
+        type: string
+        default: ''
     secrets:
       SSH_PRIVATE_KEY:
         required: true
@@ -189,6 +197,35 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           HOST=$(echo "$SERVER_HOST" | tr -d '[:space:]')
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Setup Nginx config
+        if: inputs.setup-nginx && inputs.nginx-domain != ''
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          HOST=$(echo "$SERVER_HOST" | tr -d '[:space:]')
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ inputs.server-user }}@${HOST} "
+            mkdir -p ${{ inputs.nginx-root }}
+            cat > /etc/nginx/sites-available/${{ inputs.nginx-domain }} << 'NGINXEOF'
+          server {
+              listen 80;
+              server_name ${{ inputs.nginx-domain }};
+              root ${{ inputs.nginx-root }};
+              index index.html;
+              location / {
+                  try_files \$uri \$uri/ /index.html;
+              }
+              location /assets/ {
+                  expires 1y;
+                  add_header Cache-Control \"public, immutable\";
+              }
+              gzip on;
+              gzip_types text/css application/javascript application/json image/svg+xml;
+          }
+          NGINXEOF
+            ln -sf /etc/nginx/sites-available/${{ inputs.nginx-domain }} /etc/nginx/sites-enabled/
+            nginx -t && systemctl reload nginx
+          "
 
       - name: Rsync dist to server
         env:
