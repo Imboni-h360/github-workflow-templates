@@ -51,11 +51,17 @@ on:
       # Vite build-time env vars — baked into the JS bundle at build time
       VITE_API_BASE_URL:
         required: false
+      VITE_API_URL:
+        required: false
       VITE_GOOGLE_MAPS_API_KEY:
         required: false
       VITE_CLINIC_WEB_URL:
         required: false
       VITE_BOOKING_IFRAME_URL:
+        required: false
+      VITE_PORTAL_URL:
+        required: false
+      VITE_CLINIC_ID:
         required: false
 
 permissions:
@@ -172,17 +178,26 @@ jobs:
 
       - name: Write production .env
         run: |
-          cat > .env << 'ENVEOF'
-          VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
-          VITE_ENV=production
-          VITE_ENABLE_PWA=true
-          VITE_ENABLE_ANALYTICS=false
-          VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
-          VITE_CLINIC_WEB_URL=${{ secrets.VITE_CLINIC_WEB_URL }}
-          VITE_BOOKING_IFRAME_URL=${{ secrets.VITE_BOOKING_IFRAME_URL }}
-          ENVEOF
-          # strip leading whitespace from heredoc
-          sed -i 's/^[[:space:]]*//' .env
+          {
+            echo "VITE_ENV=production"
+            echo "VITE_ENABLE_PWA=true"
+            echo "VITE_ENABLE_ANALYTICS=false"
+            [ -n "$VITE_API_BASE_URL" ]      && echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"
+            [ -n "$VITE_API_URL" ]           && echo "VITE_API_URL=$VITE_API_URL"
+            [ -n "$VITE_GOOGLE_MAPS_API_KEY" ] && echo "VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY"
+            [ -n "$VITE_CLINIC_WEB_URL" ]    && echo "VITE_CLINIC_WEB_URL=$VITE_CLINIC_WEB_URL"
+            [ -n "$VITE_BOOKING_IFRAME_URL" ] && echo "VITE_BOOKING_IFRAME_URL=$VITE_BOOKING_IFRAME_URL"
+            [ -n "$VITE_PORTAL_URL" ]        && echo "VITE_PORTAL_URL=$VITE_PORTAL_URL"
+            [ -n "$VITE_CLINIC_ID" ]         && echo "VITE_CLINIC_ID=$VITE_CLINIC_ID"
+          } > .env
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_CLINIC_WEB_URL: ${{ secrets.VITE_CLINIC_WEB_URL }}
+          VITE_BOOKING_IFRAME_URL: ${{ secrets.VITE_BOOKING_IFRAME_URL }}
+          VITE_PORTAL_URL: ${{ secrets.VITE_PORTAL_URL }}
+          VITE_CLINIC_ID: ${{ secrets.VITE_CLINIC_ID }}
 
       - name: Build
         run: ${{ inputs.build-command }}
