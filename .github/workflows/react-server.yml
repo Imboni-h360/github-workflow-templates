@@ -184,14 +184,14 @@ jobs:
             echo "VITE_ENV=production"
             echo "VITE_ENABLE_PWA=true"
             echo "VITE_ENABLE_ANALYTICS=false"
-            [ -n "$VITE_API_BASE_URL" ]      && echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"
-            [ -n "$VITE_API_URL" ]           && echo "VITE_API_URL=$VITE_API_URL"
-            [ -n "$VITE_GOOGLE_MAPS_API_KEY" ] && echo "VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY"
-            [ -n "$VITE_CLINIC_WEB_URL" ]    && echo "VITE_CLINIC_WEB_URL=$VITE_CLINIC_WEB_URL"
-            [ -n "$VITE_BOOKING_IFRAME_URL" ] && echo "VITE_BOOKING_IFRAME_URL=$VITE_BOOKING_IFRAME_URL"
-            [ -n "$VITE_PORTAL_URL" ]        && echo "VITE_PORTAL_URL=$VITE_PORTAL_URL"
-            [ -n "$VITE_CLINIC_ID" ]             && echo "VITE_CLINIC_ID=$VITE_CLINIC_ID"
-            [ -n "$VITE_CLINIC_WEB_PANEL_URL" ]  && echo "VITE_CLINIC_WEB_PANEL_URL=$VITE_CLINIC_WEB_PANEL_URL"
+            [ -n "$VITE_API_BASE_URL" ]        && echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"        || true
+            [ -n "$VITE_API_URL" ]             && echo "VITE_API_URL=$VITE_API_URL"                  || true
+            [ -n "$VITE_GOOGLE_MAPS_API_KEY" ] && echo "VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY" || true
+            [ -n "$VITE_CLINIC_WEB_URL" ]      && echo "VITE_CLINIC_WEB_URL=$VITE_CLINIC_WEB_URL"    || true
+            [ -n "$VITE_BOOKING_IFRAME_URL" ]  && echo "VITE_BOOKING_IFRAME_URL=$VITE_BOOKING_IFRAME_URL" || true
+            [ -n "$VITE_PORTAL_URL" ]          && echo "VITE_PORTAL_URL=$VITE_PORTAL_URL"            || true
+            [ -n "$VITE_CLINIC_ID" ]           && echo "VITE_CLINIC_ID=$VITE_CLINIC_ID"              || true
+            [ -n "$VITE_CLINIC_WEB_PANEL_URL" ] && echo "VITE_CLINIC_WEB_PANEL_URL=$VITE_CLINIC_WEB_PANEL_URL" || true
           } > .env
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
