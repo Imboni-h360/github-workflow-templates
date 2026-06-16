@@ -179,9 +179,6 @@ jobs:
       - name: Build
         run: ${{ inputs.build-command }}
 
-      - name: Install rsync
-        run: sudo apt-get install -y rsync || true
-
       - name: Setup SSH
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
