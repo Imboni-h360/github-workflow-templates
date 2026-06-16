@@ -236,7 +236,14 @@ jobs:
         run: |
           HOST=$(echo "$SERVER_HOST" | tr -d '[:space:]')
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ inputs.server-user }}@${HOST} "
-            cat > /etc/nginx/sites-available/${{ inputs.nginx-domain }} << 'NGINXEOF'
+            set -e
+            CONF=/etc/nginx/sites-available/${{ inputs.nginx-domain }}
+            # Only write the base (HTTP) server block when it doesn't exist yet.
+            # On later deploys we must NOT overwrite it, or we'd wipe the
+            # 'listen 443 ssl' block certbot added — which would make HTTPS fall
+            # through to whatever owns the default 443 server (e.g. another API).
+            if [ ! -f \"\$CONF\" ]; then
+              cat > \"\$CONF\" << 'NGINXEOF'
           server {
               listen 80;
               server_name ${{ inputs.nginx-domain }};
@@ -251,11 +258,19 @@ jobs:
               }
           }
           NGINXEOF
-            ln -sf /etc/nginx/sites-available/${{ inputs.nginx-domain }} /etc/nginx/sites-enabled/
+            fi
+            ln -sf \"\$CONF\" /etc/nginx/sites-enabled/
             nginx -t && systemctl reload nginx
-            # Auto-provision SSL if certbot is installed and cert doesn't exist yet
-            if command -v certbot &>/dev/null && [ ! -d /etc/letsencrypt/live/${{ inputs.nginx-domain }} ]; then
-              certbot --nginx -d ${{ inputs.nginx-domain }} --non-interactive --agree-tos -m admin@imboni.co.rw
+            # Provision SSL on first run; on later runs re-install the existing
+            # cert so the 'listen 443 ssl' block is always present even if the
+            # config was recreated. Both paths are idempotent.
+            if command -v certbot &>/dev/null; then
+              if [ -d /etc/letsencrypt/live/${{ inputs.nginx-domain }} ]; then
+                certbot --nginx -d ${{ inputs.nginx-domain }} --reinstall --non-interactive --agree-tos -m admin@imboni.co.rw || true
+              else
+                certbot --nginx -d ${{ inputs.nginx-domain }} --non-interactive --agree-tos -m admin@imboni.co.rw || true
+              fi
+              nginx -t && systemctl reload nginx
             fi
           "
 
