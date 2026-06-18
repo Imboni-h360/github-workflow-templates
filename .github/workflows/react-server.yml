@@ -65,6 +65,8 @@ on:
         required: false
       VITE_CLINIC_WEB_PANEL_URL:
         required: false
+      VITE_CORE_API_URL:
+        required: false
 
 permissions:
   contents: read
@@ -192,6 +194,7 @@ jobs:
             [ -n "$VITE_PORTAL_URL" ]          && echo "VITE_PORTAL_URL=$VITE_PORTAL_URL"            || true
             [ -n "$VITE_CLINIC_ID" ]           && echo "VITE_CLINIC_ID=$VITE_CLINIC_ID"              || true
             [ -n "$VITE_CLINIC_WEB_PANEL_URL" ] && echo "VITE_CLINIC_WEB_PANEL_URL=$VITE_CLINIC_WEB_PANEL_URL" || true
+            [ -n "$VITE_CORE_API_URL" ]       && echo "VITE_CORE_API_URL=$VITE_CORE_API_URL"            || true
           } > .env
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
@@ -202,6 +205,7 @@ jobs:
           VITE_PORTAL_URL: ${{ secrets.VITE_PORTAL_URL }}
           VITE_CLINIC_ID: ${{ secrets.VITE_CLINIC_ID }}
           VITE_CLINIC_WEB_PANEL_URL: ${{ secrets.VITE_CLINIC_WEB_PANEL_URL }}
+          VITE_CORE_API_URL: ${{ secrets.VITE_CORE_API_URL }}
 
       - name: Build
         run: ${{ inputs.build-command }}
